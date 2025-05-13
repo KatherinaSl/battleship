@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
 
+
 export const httpServer = http.createServer(function (req, res) {
   const __dirname = path.resolve(path.dirname(''));
   const file_path =
@@ -16,3 +17,5 @@ export const httpServer = http.createServer(function (req, res) {
     res.end(data);
   });
 });
+
+

@@ -5,7 +5,7 @@ import nodeExternals from 'webpack-node-externals';
 
 const config: Configuration = {
   target: 'node',
-  entry: './src/index.ts',
+  entry: './index.ts',
   module: {
     rules: [
       {
