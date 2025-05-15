@@ -1,12 +1,15 @@
-import WebSocket, { WebSocketServer } from 'ws';
+import { WebSocketServer } from 'ws';
 import { Message, Player, RegData } from '../model';
 import { playersDB } from '../playersDB';
 import { roomsDB } from '../roomsDB';
-import { gameDB } from '../gameDB';
+import {
+  createGameCommand,
+  errorCommand,
+  regCommand,
+  updateRoomComand,
+} from './commands';
 
 const wss = new WebSocketServer({ port: 3000 });
-
-const connectionsMap: Map<string, WebSocket> = new Map<string, WebSocket>();
 
 wss.on('connection', (ws, req) => {
   console.log('New client connected');
@@ -23,64 +26,28 @@ wss.on('connection', (ws, req) => {
       const regMsg = JSON.parse(msg.data) as RegData;
       const { name, password } = regMsg;
 
-      currentPlayer = playersDB.login(name, password);
+      currentPlayer = playersDB.login(name, password, ws);
       if (currentPlayer) {
-        const answerData = {
-          type: 'reg',
-          data: JSON.stringify(currentPlayer),
-        };
-
-        ws.send(JSON.stringify(answerData));
-
-        connectionsMap.set(currentPlayer.index, ws);
-
-        const updateRoomMsg = {
-          type: 'update_room',
-          data: JSON.stringify(roomsDB.getOnePlayerRooms()),
-        };
-        wss.clients.forEach((ws) => ws.send(JSON.stringify(updateRoomMsg)));
+        regCommand(currentPlayer, ws);
+        updateRoomComand(wss);
       } else {
-        const answerError = {
-          type: 'reg',
-          data: JSON.stringify({
-            error: true,
-            errorText: 'Wrong password',
-          }),
-        };
-        ws.send(JSON.stringify(answerError));
+        errorCommand('reg', 'Wrong password', ws);
       }
     }
 
     if (msg.type === 'create_room' && currentPlayer) {
       roomsDB.create(currentPlayer);
 
-      const updateRoomMsg = {
-        type: 'update_room',
-        data: JSON.stringify(roomsDB.getOnePlayerRooms()),
-      };
-      wss.clients.forEach((ws) => ws.send(JSON.stringify(updateRoomMsg)));
+      updateRoomComand(wss);
     }
 
     if (msg.type === 'add_user_to_room' && currentPlayer) {
       const addToRoomMsg = JSON.parse(msg.data);
       const { indexRoom } = addToRoomMsg;
 
-      roomsDB.addToRoom(currentPlayer, indexRoom);
-      const updateRoomMsg = {
-        type: 'update_room',
-        data: JSON.stringify(roomsDB.getOnePlayerRooms()),
-      };
-      wss.clients.forEach((ws) => ws.send(JSON.stringify(updateRoomMsg)));
+      createGameCommand(currentPlayer, indexRoom);
 
-      const createGame = {
-        type: 'create_game',
-        data: JSON.stringify({
-          idGame: gameDB.getGameId(),
-          idPlayer: currentPlayer.index,
-        }),
-      };
-
-      connectionsMap.get(currentPlayer.index)?.send(JSON.stringify(createGame));
+      updateRoomComand(wss);
     }
   });
 

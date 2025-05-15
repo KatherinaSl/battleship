@@ -1,6 +1,6 @@
 import { Player, Room } from './model';
 
-export class RoomsDB {
+class RoomsDB {
   private rooms: Room[];
   constructor() {
     this.rooms = [];
@@ -21,7 +21,10 @@ export class RoomsDB {
   addToRoom(player: Player, id: string) {
     const room = this.rooms.find((room) => room.roomId === id);
     room?.roomUsers.push(player);
-    
+  }
+
+  getRoom(id: string): Room | null {
+    return this.rooms.find((room) => room.roomId === id) ?? null;
   }
 }
 

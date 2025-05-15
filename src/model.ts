@@ -1,4 +1,9 @@
-export type MsgType = 'reg' | 'update_winners' | 'update_room' | 'create_game';
+export type MsgType =
+  | 'reg'
+  | 'update_winners'
+  | 'update_room'
+  | 'create_game'
+  | 'start_game';
 
 export interface RegData {
   name: string;
@@ -31,6 +36,12 @@ export interface Message {
 }
 
 export interface Game {
+  id: string;
+  gameSet: GameSet[];
+}
+
+export interface GameSet {
+  playerId: string;
   ships: Ship[];
 }
 
