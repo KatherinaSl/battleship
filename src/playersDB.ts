@@ -34,6 +34,13 @@ class PlayersDb {
     const name = player.name;
     return this.players.get(name)?.socket ?? null;
   }
+
+  getSocketById(id: string): WebSocket | null {
+    return (
+      [...this.players.values()].find((pair) => pair.player.index === id)
+        ?.socket ?? null
+    );
+  }
 }
 
 export const playersDB = new PlayersDb();

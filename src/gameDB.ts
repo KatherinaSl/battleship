@@ -1,4 +1,4 @@
-import { Game, Room } from './model';
+import { Game, Room, Ship } from './model';
 
 class GamesDB {
   private games: Map<string, Game>;
@@ -23,6 +23,25 @@ class GamesDB {
     };
     this.games.set(game.id, game);
     return game;
+  }
+
+  addShips(gameId: string, playerId: string, ships: Ship[]) {
+    const game = this.games.get(gameId);
+    const gameSet = game?.gameSet.find((set) => set.playerId === playerId);
+    gameSet?.ships.push(...ships);
+    return game;
+  }
+
+  getAnotherPlayerShips(gameId: string, playerId: string): Ship[] | [] {
+    const game = this.games.get(gameId);
+    const gameSet = game?.gameSet.find((set) => set.playerId !== playerId);
+    return gameSet?.ships ?? [];
+  }
+
+  getAnotherPlayerId(gameId: string, playerId: string): string | null {
+    const game = this.games.get(gameId);
+    const gameSet = game?.gameSet.find((set) => set.playerId !== playerId);
+    return gameSet?.playerId ?? null;
   }
 }
 

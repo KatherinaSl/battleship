@@ -8,6 +8,7 @@ import {
   regCommand,
   updateRoomComand,
 } from './commands';
+import { gameDB } from '../gameDB';
 
 const wss = new WebSocketServer({ port: 3000 });
 
@@ -48,6 +49,44 @@ wss.on('connection', (ws, req) => {
       createGameCommand(currentPlayer, indexRoom);
 
       updateRoomComand(wss);
+    }
+
+    if (msg.type === 'add_ships' && currentPlayer) {
+      const shipsMsg = JSON.parse(msg.data);
+      const { gameId, ships, indexPlayer } = shipsMsg;
+
+      const game = gameDB.addShips(gameId, indexPlayer, ships);
+
+      const isGameReady = game?.gameSet
+        .map((set) => set.ships.length)
+        .every((length) => length > 0);
+
+      if (isGameReady) {
+        const starterPack1 = {
+          type: 'start_game',
+          data: JSON.stringify({
+            ships,
+            currentPlayerIndex: indexPlayer,
+          }),
+        };
+
+        const anotherShips = gameDB.getAnotherPlayerShips(gameId, indexPlayer);
+        const anotherId = gameDB.getAnotherPlayerId(gameId, indexPlayer);
+
+        const starterPack2 = {
+          type: 'start_game',
+          data: JSON.stringify({
+            ships: anotherShips,
+            currentPlayerIndex: anotherId,
+          }),
+        };
+
+        playersDB
+          .getSocketById(indexPlayer)
+          ?.send(JSON.stringify(starterPack1));
+
+        playersDB.getSocketById(anotherId!)?.send(JSON.stringify(starterPack2));
+      }
     }
   });
 
