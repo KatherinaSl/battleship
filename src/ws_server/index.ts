@@ -1,18 +1,19 @@
-import { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import { Message, Player, RegData } from '../model';
 import { playersDB } from '../playersDB';
 import { roomsDB } from '../roomsDB';
+import { gameDB } from '../gameDB';
 
 const wss = new WebSocketServer({ port: 3000 });
 
-//smth
+const connectionsMap: Map<string, WebSocket> = new Map<string, WebSocket>();
 
 wss.on('connection', (ws, req) => {
   console.log('New client connected');
   console.log('Client IP address:', req.socket.remoteAddress);
   console.log('Client protocol:', ws.protocol);
 
-  let player: Player | null = null;
+  let currentPlayer: Player | null = null;
 
   ws.on('message', (message) => {
     console.log(`Received message: ${message}`);
@@ -22,15 +23,17 @@ wss.on('connection', (ws, req) => {
       const regMsg = JSON.parse(msg.data) as RegData;
       const { name, password } = regMsg;
 
-      player = playersDB.login(name, password);
-      if (player) {
+      currentPlayer = playersDB.login(name, password);
+      if (currentPlayer) {
         const answerData = {
           type: 'reg',
-          data: JSON.stringify(player),
+          data: JSON.stringify(currentPlayer),
         };
 
         ws.send(JSON.stringify(answerData));
-        //player + ws -> smth
+
+        connectionsMap.set(currentPlayer.index, ws);
+
         const updateRoomMsg = {
           type: 'update_room',
           data: JSON.stringify(roomsDB.getOnePlayerRooms()),
@@ -48,8 +51,8 @@ wss.on('connection', (ws, req) => {
       }
     }
 
-    if (msg.type === 'create_room' && player) {
-      roomsDB.create(player);
+    if (msg.type === 'create_room' && currentPlayer) {
+      roomsDB.create(currentPlayer);
 
       const updateRoomMsg = {
         type: 'update_room',
@@ -58,24 +61,26 @@ wss.on('connection', (ws, req) => {
       wss.clients.forEach((ws) => ws.send(JSON.stringify(updateRoomMsg)));
     }
 
-    if (msg.type === 'add_user_to_room' && player) {
+    if (msg.type === 'add_user_to_room' && currentPlayer) {
       const addToRoomMsg = JSON.parse(msg.data);
       const { indexRoom } = addToRoomMsg;
 
-      roomsDB.addToRoom(player, indexRoom);
+      roomsDB.addToRoom(currentPlayer, indexRoom);
       const updateRoomMsg = {
         type: 'update_room',
         data: JSON.stringify(roomsDB.getOnePlayerRooms()),
       };
       wss.clients.forEach((ws) => ws.send(JSON.stringify(updateRoomMsg)));
 
-      // const createGame = {
-      //   type: 'create_game',
-      //   data: JSON.stringify({
-      //     idGame: crypto.randomUUID(),
-      //     idPlayer: player.index,
-      //   }),
-      // };
+      const createGame = {
+        type: 'create_game',
+        data: JSON.stringify({
+          idGame: gameDB.getGameId(),
+          idPlayer: currentPlayer.index,
+        }),
+      };
+
+      connectionsMap.get(currentPlayer.index)?.send(JSON.stringify(createGame));
     }
   });
 

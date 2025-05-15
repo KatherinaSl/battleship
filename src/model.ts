@@ -24,10 +24,22 @@ export interface Room {
   roomUsers: Player[];
 }
 
-
-
 export interface Message {
   type: string;
   data: string;
   id: 0;
+}
+
+export interface Game {
+  ships: Ship[];
+}
+
+export interface Ship {
+  position: {
+    x: number;
+    y: number;
+  };
+  direction: boolean;
+  length: number;
+  type: 'small' | 'medium' | 'large' | 'huge';
 }
