@@ -1,11 +1,12 @@
 import { WebSocketServer } from 'ws';
-import { Message, Player, RegData } from '../model';
+import { AttackData, Message, Player, RegData } from '../model';
 import { playersDB } from '../playersDB';
 import { roomsDB } from '../roomsDB';
 import {
   createGameCommand,
   errorCommand,
   regCommand,
+  turnCommand,
   updateRoomComand,
 } from './commands';
 import { gameDB } from '../gameDB';
@@ -86,6 +87,93 @@ wss.on('connection', (ws, req) => {
           ?.send(JSON.stringify(starterPack1));
 
         playersDB.getSocketById(anotherId!)?.send(JSON.stringify(starterPack2));
+
+        turnCommand(indexPlayer, gameId);
+      }
+    }
+
+    if (msg.type === 'attack') {
+      const attackMsg = JSON.parse(msg.data) as AttackData;
+      const { gameId, x, y, indexPlayer } = attackMsg;
+
+      const game = gameDB.get(gameId);
+      const emenyGameBoard = game?.gameSet.find(
+        (set) => set.playerId !== indexPlayer
+      )?.gameBoard;
+
+      const status = emenyGameBoard?.attack(x, y);
+      playersDB.getSocketById(indexPlayer)?.send(
+        JSON.stringify({
+          type: 'attack',
+          data: JSON.stringify({
+            position: { x, y },
+            currentPlayer: indexPlayer,
+            status,
+          }),
+        })
+      );
+
+      const anotherId = gameDB.getAnotherPlayerId(gameId, indexPlayer);
+      playersDB.getSocketById(anotherId!)?.send(
+        JSON.stringify({
+          type: 'attack',
+          data: JSON.stringify({
+            position: { x, y },
+            currentPlayer: indexPlayer,
+            status,
+          }),
+        })
+      );
+
+      if (status === 'miss') {
+        turnCommand(anotherId!, gameId);
+      } else {
+        turnCommand(indexPlayer, gameId);
+      }
+    }
+
+    if (msg.type === 'randomAttack') {
+      const attackMsg = JSON.parse(msg.data) as AttackData;
+      const { gameId, indexPlayer } = attackMsg;
+
+      const game = gameDB.get(gameId);
+      const emenyGameBoard = game?.gameSet.find(
+        (set) => set.playerId !== indexPlayer
+      )?.gameBoard;
+
+      const randomAttackStatus = emenyGameBoard!.randomAttack();
+      const {
+        status,
+        position: { x, y },
+      } = randomAttackStatus;
+
+      playersDB.getSocketById(indexPlayer)?.send(
+        JSON.stringify({
+          type: 'attack',
+          data: JSON.stringify({
+            position: { x, y },
+            currentPlayer: indexPlayer,
+            status,
+          }),
+        })
+      );
+
+      const anotherId = gameDB.getAnotherPlayerId(gameId, indexPlayer);
+      playersDB.getSocketById(anotherId!)?.send(
+        JSON.stringify({
+          type: 'attack',
+          data: JSON.stringify({
+            position: { x, y },
+            currentPlayer: indexPlayer,
+            status,
+          }),
+        })
+      );
+
+      if (status === 'miss') {
+        turnCommand(anotherId!, gameId);
+      } else {
+        turnCommand(indexPlayer, gameId);
       }
     }
   });

@@ -50,3 +50,16 @@ export function createGameCommand(currentPlayer: Player, indexRoom: string) {
     )
   );
 }
+
+export function turnCommand(playerId: string, gameId: string) {
+  const msg = {
+    type: 'turn',
+    data: JSON.stringify({
+      currentPlayer: playerId,
+    }),
+  };
+  const anotherPlayerId = gameDB.getAnotherPlayerId(gameId, playerId);
+
+  playersDB.getSocketById(playerId)?.send(JSON.stringify(msg));
+  playersDB.getSocketById(anotherPlayerId!)?.send(JSON.stringify(msg));
+}

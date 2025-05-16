@@ -1,9 +1,20 @@
+import { GameBoard } from './gameBoard';
+
 export type MsgType =
   | 'reg'
   | 'update_winners'
   | 'update_room'
+  | 'create_room'
+  | 'add_user_to_room'
   | 'create_game'
-  | 'start_game';
+  | 'add_ships'
+  | 'start_game'
+  | 'attack'
+  | 'randomAttack'
+  | 'turn'
+  | 'finish';
+
+export type AttackStatusType = 'miss' | 'killed' | 'shot';
 
 export interface RegData {
   name: string;
@@ -30,7 +41,7 @@ export interface Room {
 }
 
 export interface Message {
-  type: string;
+  type: MsgType;
   data: string;
   id: 0;
 }
@@ -43,6 +54,7 @@ export interface Game {
 export interface GameSet {
   playerId: string;
   ships: Ship[];
+  gameBoard: GameBoard;
 }
 
 export interface Ship {
@@ -53,4 +65,19 @@ export interface Ship {
   direction: boolean;
   length: number;
   type: 'small' | 'medium' | 'large' | 'huge';
+}
+
+export interface AttackData {
+  gameId: string;
+  x: number;
+  y: number;
+  indexPlayer: string;
+}
+
+export interface RandomAttackStatus {
+  status: AttackStatusType;
+  position: {
+    x: number;
+    y: number;
+  };
 }

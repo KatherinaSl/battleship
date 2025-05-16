@@ -1,3 +1,4 @@
+import { GameBoard } from './gameBoard';
 import { Game, Room, Ship } from './model';
 
 class GamesDB {
@@ -14,10 +15,12 @@ class GamesDB {
         {
           playerId: player1.index,
           ships: [],
+          gameBoard: new GameBoard(),
         },
         {
           playerId: player2.index,
           ships: [],
+          gameBoard: new GameBoard(),
         },
       ],
     };
@@ -25,10 +28,15 @@ class GamesDB {
     return game;
   }
 
+  get(id: string): Game | null {
+    return this.games.get(id) ?? null;
+  }
+
   addShips(gameId: string, playerId: string, ships: Ship[]) {
     const game = this.games.get(gameId);
     const gameSet = game?.gameSet.find((set) => set.playerId === playerId);
     gameSet?.ships.push(...ships);
+    gameSet?.gameBoard.addShips(ships);
     return game;
   }
 
