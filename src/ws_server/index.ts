@@ -1,0 +1,104 @@
+import { WebSocketServer } from 'ws';
+import {
+  AddShipsData,
+  AddUserData,
+  AttackData,
+  Message,
+  Player,
+  RegData,
+} from '../common/model';
+import { playersDB } from '../DB/playersDB';
+import { roomsDB } from '../DB/roomsDB';
+import {
+  attackCommand,
+  createGameCommand,
+  errorCommand,
+  randomAttackCommand,
+  regCommand,
+  addShipsCommand,
+  updateRoomCommand,
+  updateWinnersCommand,
+} from './commands';
+import { generateAddShipsByBot } from '../bot';
+
+export const wss = new WebSocketServer({ port: 3000 });
+
+wss.on('connection', (ws, req) => {
+  console.log('New client connected');
+  console.log('Client IP address:', req.socket.remoteAddress);
+  console.log('Client protocol:', ws.protocol);
+
+  let currentPlayer: Player | null = null;
+
+  ws.on('message', (message) => {
+    console.log(`Received command: ${message}`);
+
+    const msg = JSON.parse(message.toString()) as Message;
+    if (msg.type === 'reg') {
+      const regMsg = JSON.parse(msg.data) as RegData;
+      const { name, password } = regMsg;
+
+      currentPlayer = playersDB.login(name, password, ws);
+      if (currentPlayer) {
+        regCommand(currentPlayer, ws);
+        updateRoomCommand(wss);
+        updateWinnersCommand(wss);
+      } else {
+        errorCommand('reg', 'Wrong password', ws);
+      }
+    }
+
+    if (msg.type === 'create_room' && currentPlayer) {
+      roomsDB.create(currentPlayer);
+
+      updateRoomCommand(wss);
+      updateWinnersCommand(wss);
+    }
+
+    if (msg.type === 'add_user_to_room' && currentPlayer) {
+      const addToRoomMsg = JSON.parse(msg.data) as AddUserData;
+      const { indexRoom } = addToRoomMsg;
+
+      createGameCommand(currentPlayer, indexRoom);
+      updateRoomCommand(wss);
+      updateWinnersCommand(wss);
+    }
+
+    if (msg.type === 'add_ships' && currentPlayer) {
+      const shipsMsg = JSON.parse(msg.data) as AddShipsData;
+      addShipsCommand(shipsMsg);
+    }
+
+    if (msg.type === 'attack') {
+      const attackMsg = JSON.parse(msg.data) as AttackData;
+      attackCommand(attackMsg);
+    }
+
+    if (msg.type === 'randomAttack') {
+      const attackMsg = JSON.parse(msg.data) as AttackData;
+      randomAttackCommand(attackMsg);
+    }
+
+    if (msg.type === 'single_play' && currentPlayer) {
+      const room = roomsDB.createWithBot(currentPlayer);
+      const game = createGameCommand(currentPlayer, room.roomId);
+
+      addShipsCommand(generateAddShipsByBot(game.id));
+    }
+  });
+
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
+});
+
+process.on('SIGINT', () => {
+  for (const socket of wss.clients) {
+    socket.close(1000);
+  }
+  process.exit(0);
+});
+
+console.log(
+  `WebSocket server is running on ${wss.options.host ?? 'localhost'}:${wss.options.port}`
+);
