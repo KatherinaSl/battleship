@@ -14,6 +14,15 @@ class RoomsDB {
     this.rooms.push(room);
   }
 
+  createWithBot(player: Player): Room {
+    const room = {
+      roomId: crypto.randomUUID(),
+      roomUsers: [player, { name: 'bot', index: 'bot' }],
+    };
+    this.rooms.push(room);
+    return room;
+  }
+
   getOnePlayerRooms(): Room[] {
     return this.rooms.filter((room) => room.roomUsers.length === 1);
   }

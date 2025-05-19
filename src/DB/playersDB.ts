@@ -6,6 +6,7 @@ class PlayersDb {
   private connections: Map<string, WebSocket>;
   constructor() {
     this.players = new Map();
+    this.players.set('bot', { name: 'bot', index: 'bot' });
     this.connections = new Map();
   }
 

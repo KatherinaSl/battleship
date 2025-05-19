@@ -7,6 +7,9 @@ class WinnersDB {
   }
 
   addWin(name: string) {
+    if (name === 'bot') {
+      return;
+    }
     const winner = this.winners.find((winner) => winner.name === name);
     if (winner) {
       winner.wins += 1;

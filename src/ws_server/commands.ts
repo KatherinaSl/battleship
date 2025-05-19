@@ -2,6 +2,7 @@ import { gameDB } from '../DB/gameDB';
 import {
   AddShipsData,
   AttackData,
+  Game,
   MsgType,
   Player,
   Room,
@@ -27,7 +28,7 @@ function send(type: MsgType, data: string, ws: WebSocket | null) {
   }
 }
 
-export function updateRoomComand(wss: WebSocket.Server) {
+export function updateRoomCommand(wss: WebSocket.Server) {
   const data = JSON.stringify(roomsDB.getOnePlayerRooms());
   wss.clients.forEach((ws) => send('update_room', data, ws));
 }
@@ -45,7 +46,10 @@ export function errorCommand(type: MsgType, errorText: string, ws: WebSocket) {
   send(type, data, ws);
 }
 
-export function createGameCommand(currentPlayer: Player, indexRoom: string) {
+export function createGameCommand(
+  currentPlayer: Player,
+  indexRoom: string
+): Game {
   roomsDB.addToRoom(currentPlayer, indexRoom);
   const room = roomsDB.getRoom(indexRoom) as Room;
 
@@ -58,6 +62,8 @@ export function createGameCommand(currentPlayer: Player, indexRoom: string) {
     });
     send('create_game', data, playersDB.getSocket(player));
   });
+
+  return game;
 }
 
 export function addShipsCommand(shipsMsg: AddShipsData) {
@@ -113,18 +119,24 @@ export function randomAttackCommand(attackMsg: AttackData) {
   if (game?.playerTurnId === indexPlayer) {
     const enemyAttack = emenyGameBoard!.randomAttack();
     processAttacks(gameId, indexPlayer, enemyAttack);
-  }
+  } 
 }
 
 function turnCommand(playerId: string, gameId: string) {
-  const data = JSON.stringify({
-    currentPlayer: playerId,
-  });
   const anotherPlayerId = gameDB.getAnotherPlayerId(gameId, playerId);
+
   const game = gameDB.get(gameId);
   if (game) {
     game.playerTurnId = playerId;
   }
+  if (playerId === 'bot') {
+    randomAttackCommand({ gameId, indexPlayer: playerId, x: 0, y: 0 });
+    return;
+  }
+
+  const data = JSON.stringify({
+    currentPlayer: playerId,
+  });
 
   send('turn', data, playersDB.getSocketById(playerId));
   send('turn', data, playersDB.getSocketById(anotherPlayerId));
@@ -151,14 +163,6 @@ function processAttacks(
     send('attack', data, playersDB.getSocketById(anotherId));
   });
 
-  if (enemyAttack?.length) {
-    if (!enemyAttack || enemyAttack.every((cell) => cell.status === 'miss')) {
-      turnCommand(anotherId!, gameId);
-    } else {
-      turnCommand(indexPlayer, gameId);
-    }
-  }
-
   if (enemyGameBoard?.isFinished()) {
     winnersDB.addWin(playersDB.getPlayer(indexPlayer)!.name);
     const data = JSON.stringify({
@@ -168,6 +172,12 @@ function processAttacks(
     send('finish', data, playersDB.getSocketById(anotherId));
 
     updateWinnersCommand(wss);
+  } else if (enemyAttack?.length) {
+    if (!enemyAttack || enemyAttack.every((cell) => cell.status === 'miss')) {
+      turnCommand(anotherId!, gameId);
+    } else {
+      turnCommand(indexPlayer, gameId);
+    }
   }
 }
 

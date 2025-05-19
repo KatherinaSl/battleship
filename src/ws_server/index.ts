@@ -16,9 +16,10 @@ import {
   randomAttackCommand,
   regCommand,
   addShipsCommand,
-  updateRoomComand,
+  updateRoomCommand,
   updateWinnersCommand,
 } from './commands';
+import { generateAddShipsByBot } from '../bot';
 
 export const wss = new WebSocketServer({ port: 3000 });
 
@@ -40,7 +41,7 @@ wss.on('connection', (ws, req) => {
       currentPlayer = playersDB.login(name, password, ws);
       if (currentPlayer) {
         regCommand(currentPlayer, ws);
-        updateRoomComand(wss);
+        updateRoomCommand(wss);
         updateWinnersCommand(wss);
       } else {
         errorCommand('reg', 'Wrong password', ws);
@@ -50,7 +51,7 @@ wss.on('connection', (ws, req) => {
     if (msg.type === 'create_room' && currentPlayer) {
       roomsDB.create(currentPlayer);
 
-      updateRoomComand(wss);
+      updateRoomCommand(wss);
       updateWinnersCommand(wss);
     }
 
@@ -59,7 +60,7 @@ wss.on('connection', (ws, req) => {
       const { indexRoom } = addToRoomMsg;
 
       createGameCommand(currentPlayer, indexRoom);
-      updateRoomComand(wss);
+      updateRoomCommand(wss);
       updateWinnersCommand(wss);
     }
 
@@ -76,6 +77,13 @@ wss.on('connection', (ws, req) => {
     if (msg.type === 'randomAttack') {
       const attackMsg = JSON.parse(msg.data) as AttackData;
       randomAttackCommand(attackMsg);
+    }
+
+    if (msg.type === 'single_play' && currentPlayer) {
+      const room = roomsDB.createWithBot(currentPlayer);
+      const game = createGameCommand(currentPlayer, room.roomId);
+
+      addShipsCommand(generateAddShipsByBot(game.id));
     }
   });
 

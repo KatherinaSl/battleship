@@ -12,7 +12,8 @@ export type MsgType =
   | 'attack'
   | 'randomAttack'
   | 'turn'
-  | 'finish';
+  | 'finish'
+  | 'single_play';
 
 export type AttackStatusType = 'miss' | 'killed' | 'shot';
 
@@ -82,7 +83,7 @@ export interface Ship {
   };
   direction: boolean;
   length: number;
-  type: 'small' | 'medium' | 'large' | 'huge';
+  type: string;
 }
 
 export interface RandomAttackStatus {
