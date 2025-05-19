@@ -108,7 +108,11 @@ export class GameBoard {
     return [{ status: 'miss', x: 0, y: 0 }];
   }
 
-  setMissCells(ship: ShipCell[]): ShipCell[] {
+  isFinished(): boolean {
+    return this.shotShips.flat().every((ship) => ship.status === 'killed');
+  }
+
+  private setMissCells(ship: ShipCell[]): ShipCell[] {
     const missCells: Set<ShipCell> = new Set();
     ship.forEach((cell) => {
       this.getEmptyCellsAround(cell.x, cell.y).forEach((cell) => {
@@ -119,7 +123,7 @@ export class GameBoard {
     return Array.from(missCells);
   }
 
-  getEmptyCellsAround(x: number, y: number): ShipCell[] {
+  private getEmptyCellsAround(x: number, y: number): ShipCell[] {
     const ship: ShipCell[] = [];
     aroundCells.forEach((direction) => {
       const cellType = this.getCell(x + direction[0], y + direction[1]);

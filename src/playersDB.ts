@@ -29,6 +29,12 @@ class PlayersDb {
     return player;
   }
 
+  getPlayer(id: string): Player | null {
+    return (
+      [...this.players.values()].find((player) => player.index === id) ?? null
+    );
+  }
+
   getSocket(player: Player): WebSocket | null {
     const name = player.name;
     return this.connections.get(name) ?? null;

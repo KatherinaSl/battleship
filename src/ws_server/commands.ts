@@ -10,6 +10,8 @@ import {
 import { playersDB } from '../playersDB';
 import { roomsDB } from '../roomsDB';
 import WebSocket from 'ws';
+import { winnersDB } from '../winnersDB';
+import { wss } from '.';
 
 export function updateRoomComand(wss: WebSocket.Server) {
   const updateRoomMsg = {
@@ -139,6 +141,10 @@ function processAttacks(
   enemyAttack: ShipCell[]
 ) {
   const anotherId = gameDB.getAnotherPlayerId(gameId, indexPlayer);
+  const game = gameDB.get(gameId);
+  const enemyGameBoard = game?.gameSet.find(
+    (gameSet) => gameSet.playerId === anotherId
+  )?.gameBoard;
 
   enemyAttack?.forEach((cell) => {
     const attackData = JSON.stringify({
@@ -161,4 +167,30 @@ function processAttacks(
       turnCommand(indexPlayer, gameId);
     }
   }
+
+  if (enemyGameBoard?.isFinished()) {
+    winnersDB.addWin(playersDB.getPlayer(indexPlayer)!.name);
+    const finishedData = JSON.stringify({
+      type: 'finish',
+      data: JSON.stringify({
+        winPlayer: indexPlayer,
+      }),
+      id: 0,
+    });
+
+    playersDB.getSocketById(indexPlayer)?.send(finishedData);
+    playersDB.getSocketById(anotherId!)?.send(finishedData);
+
+    updateWinnersCommand(wss);
+  }
+}
+
+export function updateWinnersCommand(wss: WebSocket.Server) {
+  const undateWinnersData = {
+    type: 'update_winners',
+    data: JSON.stringify(winnersDB.getWins()),
+    id: 0,
+  };
+
+  wss.clients.forEach((ws) => ws.send(JSON.stringify(undateWinnersData)));
 }

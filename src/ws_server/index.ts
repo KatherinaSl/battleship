@@ -17,9 +17,10 @@ import {
   regCommand,
   addShipsCommand,
   updateRoomComand,
+  updateWinnersCommand,
 } from './commands';
 
-const wss = new WebSocketServer({ port: 3000 });
+export const wss = new WebSocketServer({ port: 3000 });
 
 wss.on('connection', (ws, req) => {
   console.log('New client connected');
@@ -41,6 +42,7 @@ wss.on('connection', (ws, req) => {
       if (currentPlayer) {
         regCommand(currentPlayer, ws);
         updateRoomComand(wss);
+        updateWinnersCommand(wss);
       } else {
         errorCommand('reg', 'Wrong password', ws);
       }
@@ -50,6 +52,7 @@ wss.on('connection', (ws, req) => {
       roomsDB.create(currentPlayer);
 
       updateRoomComand(wss);
+      updateWinnersCommand(wss);
     }
 
     if (msg.type === 'add_user_to_room' && currentPlayer) {
@@ -58,6 +61,7 @@ wss.on('connection', (ws, req) => {
 
       createGameCommand(currentPlayer, indexRoom);
       updateRoomComand(wss);
+      updateWinnersCommand(wss);
     }
 
     if (msg.type === 'add_ships' && currentPlayer) {
