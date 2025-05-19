@@ -1,4 +1,4 @@
-import { Ship, ShipCell } from './model';
+import { Ship, ShipCell } from './common/model';
 
 enum CellType {
   EMPTY,

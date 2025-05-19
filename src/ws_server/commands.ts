@@ -1,47 +1,48 @@
-import { gameDB } from '../gameDB';
+import { gameDB } from '../DB/gameDB';
 import {
   AddShipsData,
   AttackData,
+  MsgType,
   Player,
   Room,
   Ship,
   ShipCell,
-} from '../model';
-import { playersDB } from '../playersDB';
-import { roomsDB } from '../roomsDB';
+} from '../common/model';
+import { playersDB } from '../DB/playersDB';
+import { roomsDB } from '../DB/roomsDB';
 import WebSocket from 'ws';
-import { winnersDB } from '../winnersDB';
+import { winnersDB } from '../DB/winnersDB';
 import { wss } from '.';
 
-export function updateRoomComand(wss: WebSocket.Server) {
-  const updateRoomMsg = {
-    type: 'update_room',
-    data: JSON.stringify(roomsDB.getOnePlayerRooms()),
+function send(type: MsgType, data: string, ws: WebSocket | null) {
+  const message = JSON.stringify({
+    type,
+    data,
     id: 0,
-  };
-  wss.clients.forEach((ws) => ws.send(JSON.stringify(updateRoomMsg)));
+  });
+
+  if (ws) {
+    console.log(`Send command: ${message}`);
+    ws.send(message);
+  }
+}
+
+export function updateRoomComand(wss: WebSocket.Server) {
+  const data = JSON.stringify(roomsDB.getOnePlayerRooms());
+  wss.clients.forEach((ws) => send('update_room', data, ws));
 }
 
 export function regCommand(currentPlayer: Player, ws: WebSocket) {
-  const answerData = {
-    type: 'reg',
-    data: JSON.stringify(currentPlayer),
-    id: 0,
-  };
-
-  ws.send(JSON.stringify(answerData));
+  const data = JSON.stringify(currentPlayer);
+  send('reg', data, ws);
 }
 
-export function errorCommand(type: string, errorText: string, ws: WebSocket) {
-  const answerError = {
-    type,
-    data: JSON.stringify({
-      error: true,
-      errorText,
-    }),
-    id: 0,
-  };
-  ws.send(JSON.stringify(answerError));
+export function errorCommand(type: MsgType, errorText: string, ws: WebSocket) {
+  const data = JSON.stringify({
+    error: true,
+    errorText,
+  });
+  send(type, data, ws);
 }
 
 export function createGameCommand(currentPlayer: Player, indexRoom: string) {
@@ -51,16 +52,11 @@ export function createGameCommand(currentPlayer: Player, indexRoom: string) {
   const game = gameDB.create(room);
 
   room?.roomUsers.forEach((player) => {
-    playersDB.getSocket(player)?.send(
-      JSON.stringify({
-        type: 'create_game',
-        data: JSON.stringify({
-          idGame: game.id,
-          idPlayer: player.index,
-        }),
-        id: 0,
-      })
-    );
+    const data = JSON.stringify({
+      idGame: game.id,
+      idPlayer: player.index,
+    });
+    send('create_game', data, playersDB.getSocket(player));
   });
 }
 
@@ -80,22 +76,16 @@ export function addShipsCommand(shipsMsg: AddShipsData) {
     startGameCommand(indexPlayer, ships);
     startGameCommand(anotherId!, anotherShips);
 
-    //todo save whose turn in to the game
     turnCommand(indexPlayer, gameId);
   }
 }
 
 function startGameCommand(playerId: string, ships: Ship[]) {
-  const msg = {
-    type: 'start_game',
-    data: JSON.stringify({
-      ships,
-      currentPlayerIndex: playerId,
-    }),
-    id: 0,
-  };
-
-  playersDB.getSocketById(playerId)?.send(JSON.stringify(msg));
+  const data = JSON.stringify({
+    ships,
+    currentPlayerIndex: playerId,
+  });
+  send('start_game', data, playersDB.getSocketById(playerId));
 }
 
 export function attackCommand(attackMsg: AttackData) {
@@ -106,8 +96,10 @@ export function attackCommand(attackMsg: AttackData) {
     (set) => set.playerId !== indexPlayer
   )?.gameBoard;
 
-  const enemyAttack = emenyGameBoard!.attack(x, y);
-  processAttacks(gameId, indexPlayer, enemyAttack);
+  if (game?.playerTurnId === indexPlayer) {
+    const enemyAttack = emenyGameBoard!.attack(x, y);
+    processAttacks(gameId, indexPlayer, enemyAttack);
+  }
 }
 
 export function randomAttackCommand(attackMsg: AttackData) {
@@ -118,21 +110,24 @@ export function randomAttackCommand(attackMsg: AttackData) {
     (set) => set.playerId !== indexPlayer
   )?.gameBoard;
 
-  const enemyAttack = emenyGameBoard!.randomAttack();
-  processAttacks(gameId, indexPlayer, enemyAttack);
+  if (game?.playerTurnId === indexPlayer) {
+    const enemyAttack = emenyGameBoard!.randomAttack();
+    processAttacks(gameId, indexPlayer, enemyAttack);
+  }
 }
 
 function turnCommand(playerId: string, gameId: string) {
-  const msg = {
-    type: 'turn',
-    data: JSON.stringify({
-      currentPlayer: playerId,
-    }),
-  };
+  const data = JSON.stringify({
+    currentPlayer: playerId,
+  });
   const anotherPlayerId = gameDB.getAnotherPlayerId(gameId, playerId);
+  const game = gameDB.get(gameId);
+  if (game) {
+    game.playerTurnId = playerId;
+  }
 
-  playersDB.getSocketById(playerId)?.send(JSON.stringify(msg));
-  playersDB.getSocketById(anotherPlayerId!)?.send(JSON.stringify(msg));
+  send('turn', data, playersDB.getSocketById(playerId));
+  send('turn', data, playersDB.getSocketById(anotherPlayerId));
 }
 
 function processAttacks(
@@ -147,17 +142,13 @@ function processAttacks(
   )?.gameBoard;
 
   enemyAttack?.forEach((cell) => {
-    const attackData = JSON.stringify({
-      type: 'attack',
-      data: JSON.stringify({
-        position: { x: cell.x, y: cell.y },
-        currentPlayer: indexPlayer,
-        status: cell.status,
-      }),
-      id: 0,
+    const data = JSON.stringify({
+      position: { x: cell.x, y: cell.y },
+      currentPlayer: indexPlayer,
+      status: cell.status,
     });
-    playersDB.getSocketById(indexPlayer)?.send(attackData);
-    playersDB.getSocketById(anotherId!)?.send(attackData);
+    send('attack', data, playersDB.getSocketById(indexPlayer));
+    send('attack', data, playersDB.getSocketById(anotherId));
   });
 
   if (enemyAttack?.length) {
@@ -170,27 +161,17 @@ function processAttacks(
 
   if (enemyGameBoard?.isFinished()) {
     winnersDB.addWin(playersDB.getPlayer(indexPlayer)!.name);
-    const finishedData = JSON.stringify({
-      type: 'finish',
-      data: JSON.stringify({
-        winPlayer: indexPlayer,
-      }),
-      id: 0,
+    const data = JSON.stringify({
+      winPlayer: indexPlayer,
     });
-
-    playersDB.getSocketById(indexPlayer)?.send(finishedData);
-    playersDB.getSocketById(anotherId!)?.send(finishedData);
+    send('finish', data, playersDB.getSocketById(indexPlayer));
+    send('finish', data, playersDB.getSocketById(anotherId));
 
     updateWinnersCommand(wss);
   }
 }
 
 export function updateWinnersCommand(wss: WebSocket.Server) {
-  const undateWinnersData = {
-    type: 'update_winners',
-    data: JSON.stringify(winnersDB.getWins()),
-    id: 0,
-  };
-
-  wss.clients.forEach((ws) => ws.send(JSON.stringify(undateWinnersData)));
+  const data = JSON.stringify(winnersDB.getWins());
+  wss.clients.forEach((ws) => send('update_winners', data, ws));
 }

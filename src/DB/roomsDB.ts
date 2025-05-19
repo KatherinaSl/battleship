@@ -1,4 +1,4 @@
-import { Player, Room } from './model';
+import { Player, Room } from '../common/model';
 
 class RoomsDB {
   private rooms: Room[];

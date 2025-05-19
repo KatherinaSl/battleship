@@ -6,9 +6,9 @@ import {
   Message,
   Player,
   RegData,
-} from '../model';
-import { playersDB } from '../playersDB';
-import { roomsDB } from '../roomsDB';
+} from '../common/model';
+import { playersDB } from '../DB/playersDB';
+import { roomsDB } from '../DB/roomsDB';
 import {
   attackCommand,
   createGameCommand,
@@ -26,12 +26,11 @@ wss.on('connection', (ws, req) => {
   console.log('New client connected');
   console.log('Client IP address:', req.socket.remoteAddress);
   console.log('Client protocol:', ws.protocol);
-  console.log(`cliens connected ${wss.clients.size}`);
 
   let currentPlayer: Player | null = null;
 
   ws.on('message', (message) => {
-    console.log(`Received message: ${message}`);
+    console.log(`Received command: ${message}`);
 
     const msg = JSON.parse(message.toString()) as Message;
     if (msg.type === 'reg') {
@@ -66,27 +65,32 @@ wss.on('connection', (ws, req) => {
 
     if (msg.type === 'add_ships' && currentPlayer) {
       const shipsMsg = JSON.parse(msg.data) as AddShipsData;
-
       addShipsCommand(shipsMsg);
     }
 
     if (msg.type === 'attack') {
       const attackMsg = JSON.parse(msg.data) as AttackData;
-
       attackCommand(attackMsg);
     }
 
     if (msg.type === 'randomAttack') {
       const attackMsg = JSON.parse(msg.data) as AttackData;
-
       randomAttackCommand(attackMsg);
     }
   });
 
   ws.on('close', () => {
-    if (currentPlayer) playersDB.logout(currentPlayer.name);
     console.log('Client disconnected');
   });
 });
 
-console.log('WebSocket server is running on ws://localhost:3000');
+process.on('SIGINT', () => {
+  for (const socket of wss.clients) {
+    socket.close(1000);
+  }
+  process.exit(0);
+});
+
+console.log(
+  `WebSocket server is running on ${wss.options.host ?? 'localhost'}:${wss.options.port}`
+);

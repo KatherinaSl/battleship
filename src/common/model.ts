@@ -1,4 +1,4 @@
-import { GameBoard } from './gameBoard';
+import { GameBoard } from '../gameBoard';
 
 export type MsgType =
   | 'reg'
@@ -66,6 +66,7 @@ export interface Message {
 export interface Game {
   id: string;
   gameSet: GameSet[];
+  playerTurnId?: string;
 }
 
 export interface GameSet {

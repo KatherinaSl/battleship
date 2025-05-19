@@ -1,5 +1,5 @@
-import { GameBoard } from './gameBoard';
-import { Game, Room, Ship } from './model';
+import { GameBoard } from '../gameBoard';
+import { Game, Room, Ship } from '../common/model';
 
 class GamesDB {
   private games: Map<string, Game>;

@@ -1,4 +1,4 @@
-import { Winner } from './model';
+import { Winner } from '../common/model';
 
 class WinnersDB {
   private winners: Winner[];

@@ -1,4 +1,4 @@
-import { Player } from './model';
+import { Player } from '../common/model';
 import WebSocket from 'ws';
 
 class PlayersDb {
@@ -20,7 +20,6 @@ class PlayersDb {
     };
     this.players.set(name, { ...player, password });
 
-    //todo remove check after no errors
     if (this.connections.has(name)) {
       throw new Error(`${name} has active connection already`);
     }
@@ -40,7 +39,7 @@ class PlayersDb {
     return this.connections.get(name) ?? null;
   }
 
-  getSocketById(id: string): WebSocket | null {
+  getSocketById(id: string | null): WebSocket | null {
     const player = [...this.players.values()].find(
       (player) => player.index === id
     );
@@ -48,16 +47,6 @@ class PlayersDb {
       return null;
     }
     return this.connections.get(player.name) ?? null;
-  }
-
-  logout(name: string) {
-    console.log(`logout ${name}`);
-    //todo refactor logout
-    // const connection = this.connections.get(name);
-    // if (connection && connection.readyState < CLOSING) {
-    //   connection.close();
-    // }
-    // this.connections.delete(name);
   }
 }
 
