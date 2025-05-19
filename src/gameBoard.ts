@@ -7,6 +7,17 @@ enum CellType {
   SHOT,
 }
 
+const aroundCells = [
+  [1, 1],
+  [1, 0],
+  [1, -1],
+  [-1, 1],
+  [-1, 0],
+  [-1, -1],
+  [0, 1],
+  [0, -1],
+];
+
 export class GameBoard {
   private gameBoard: Array<Array<CellType>>;
   private shotShips: Array<Array<ShipCell>>;
@@ -43,8 +54,11 @@ export class GameBoard {
     });
   }
 
-  private getCell(x: number, y: number): CellType {
-    return this.gameBoard[x][y];
+  private getCell(x: number, y: number): CellType | null {
+    if (0 <= x && x < 10 && 0 <= y && y < 10) {
+      return this.gameBoard[x][y];
+    }
+    return null;
   }
 
   private setCell(x: number, y: number, cell: CellType) {
@@ -67,12 +81,13 @@ export class GameBoard {
             cell.status = 'killed';
             return cell;
           });
-          return this.shotShips[i];
+          const missedCells = this.setMissCells(this.shotShips[i]);
+          return [...this.shotShips[i], ...missedCells];
         } else if (shipCell) {
           return [shipCell];
         }
       }
-      return [{ x, y, status: 'miss' }];
+      return [];
     } else if (cell === CellType.EMPTY) {
       this.setCell(x, y, CellType.MISS);
       return [{ x, y, status: 'miss' }];
@@ -91,5 +106,26 @@ export class GameBoard {
       }
     }
     return [{ status: 'miss', x: 0, y: 0 }];
+  }
+
+  setMissCells(ship: ShipCell[]): ShipCell[] {
+    const missCells: Set<ShipCell> = new Set();
+    ship.forEach((cell) => {
+      this.getEmptyCellsAround(cell.x, cell.y).forEach((cell) => {
+        missCells.add(cell);
+        this.setCell(cell.x, cell.y, CellType.MISS);
+      });
+    });
+    return Array.from(missCells);
+  }
+
+  getEmptyCellsAround(x: number, y: number): ShipCell[] {
+    const ship: ShipCell[] = [];
+    aroundCells.forEach((direction) => {
+      const cellType = this.getCell(x + direction[0], y + direction[1]);
+      if (cellType === CellType.EMPTY)
+        ship.push({ x: x + direction[0], y: y + direction[1], status: 'miss' });
+    });
+    return ship;
   }
 }
