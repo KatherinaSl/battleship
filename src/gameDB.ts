@@ -32,12 +32,12 @@ class GamesDB {
     return this.games.get(id) ?? null;
   }
 
-  addShips(gameId: string, playerId: string, ships: Ship[]) {
+  addShips(gameId: string, playerId: string, ships: Ship[]): Game | null {
     const game = this.games.get(gameId);
     const gameSet = game?.gameSet.find((set) => set.playerId === playerId);
     gameSet?.ships.push(...ships);
     gameSet?.gameBoard.addShips(ships);
-    return game;
+    return game ?? null;
   }
 
   getAnotherPlayerShips(gameId: string, playerId: string): Ship[] | [] {

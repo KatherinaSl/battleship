@@ -24,6 +24,23 @@ export interface RegData {
   errorText?: string;
 }
 
+export interface AddUserData {
+  indexRoom: string;
+}
+
+export interface AddShipsData {
+  gameId: string;
+  ships: Ship[];
+  indexPlayer: string;
+}
+
+export interface AttackData {
+  gameId: string;
+  x: number;
+  y: number;
+  indexPlayer: string;
+}
+
 export interface Winner {
   name: string;
   wins: number;
@@ -67,17 +84,16 @@ export interface Ship {
   type: 'small' | 'medium' | 'large' | 'huge';
 }
 
-export interface AttackData {
-  gameId: string;
-  x: number;
-  y: number;
-  indexPlayer: string;
-}
-
 export interface RandomAttackStatus {
   status: AttackStatusType;
   position: {
     x: number;
     y: number;
   };
+}
+
+export interface ShipCell {
+  x: number;
+  y: number;
+  status?: AttackStatusType;
 }

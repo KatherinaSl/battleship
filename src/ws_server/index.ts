@@ -1,15 +1,23 @@
 import { WebSocketServer } from 'ws';
-import { AttackData, Message, Player, RegData } from '../model';
+import {
+  AddShipsData,
+  AddUserData,
+  AttackData,
+  Message,
+  Player,
+  RegData,
+} from '../model';
 import { playersDB } from '../playersDB';
 import { roomsDB } from '../roomsDB';
 import {
+  attackCommand,
   createGameCommand,
   errorCommand,
+  randomAttackCommand,
   regCommand,
-  turnCommand,
+  addShipsCommand,
   updateRoomComand,
 } from './commands';
-import { gameDB } from '../gameDB';
 
 const wss = new WebSocketServer({ port: 3000 });
 
@@ -17,6 +25,7 @@ wss.on('connection', (ws, req) => {
   console.log('New client connected');
   console.log('Client IP address:', req.socket.remoteAddress);
   console.log('Client protocol:', ws.protocol);
+  console.log(`cliens connected ${wss.clients.size}`);
 
   let currentPlayer: Player | null = null;
 
@@ -44,141 +53,34 @@ wss.on('connection', (ws, req) => {
     }
 
     if (msg.type === 'add_user_to_room' && currentPlayer) {
-      const addToRoomMsg = JSON.parse(msg.data);
+      const addToRoomMsg = JSON.parse(msg.data) as AddUserData;
       const { indexRoom } = addToRoomMsg;
 
       createGameCommand(currentPlayer, indexRoom);
-
       updateRoomComand(wss);
     }
 
     if (msg.type === 'add_ships' && currentPlayer) {
-      const shipsMsg = JSON.parse(msg.data);
-      const { gameId, ships, indexPlayer } = shipsMsg;
+      const shipsMsg = JSON.parse(msg.data) as AddShipsData;
 
-      const game = gameDB.addShips(gameId, indexPlayer, ships);
-
-      const isGameReady = game?.gameSet
-        .map((set) => set.ships.length)
-        .every((length) => length > 0);
-
-      if (isGameReady) {
-        const starterPack1 = {
-          type: 'start_game',
-          data: JSON.stringify({
-            ships,
-            currentPlayerIndex: indexPlayer,
-          }),
-        };
-
-        const anotherShips = gameDB.getAnotherPlayerShips(gameId, indexPlayer);
-        const anotherId = gameDB.getAnotherPlayerId(gameId, indexPlayer);
-
-        const starterPack2 = {
-          type: 'start_game',
-          data: JSON.stringify({
-            ships: anotherShips,
-            currentPlayerIndex: anotherId,
-          }),
-        };
-
-        playersDB
-          .getSocketById(indexPlayer)
-          ?.send(JSON.stringify(starterPack1));
-
-        playersDB.getSocketById(anotherId!)?.send(JSON.stringify(starterPack2));
-
-        turnCommand(indexPlayer, gameId);
-      }
+      addShipsCommand(shipsMsg);
     }
 
     if (msg.type === 'attack') {
       const attackMsg = JSON.parse(msg.data) as AttackData;
-      const { gameId, x, y, indexPlayer } = attackMsg;
 
-      const game = gameDB.get(gameId);
-      const emenyGameBoard = game?.gameSet.find(
-        (set) => set.playerId !== indexPlayer
-      )?.gameBoard;
-
-      const status = emenyGameBoard?.attack(x, y);
-      playersDB.getSocketById(indexPlayer)?.send(
-        JSON.stringify({
-          type: 'attack',
-          data: JSON.stringify({
-            position: { x, y },
-            currentPlayer: indexPlayer,
-            status,
-          }),
-        })
-      );
-
-      const anotherId = gameDB.getAnotherPlayerId(gameId, indexPlayer);
-      playersDB.getSocketById(anotherId!)?.send(
-        JSON.stringify({
-          type: 'attack',
-          data: JSON.stringify({
-            position: { x, y },
-            currentPlayer: indexPlayer,
-            status,
-          }),
-        })
-      );
-
-      if (status === 'miss') {
-        turnCommand(anotherId!, gameId);
-      } else {
-        turnCommand(indexPlayer, gameId);
-      }
+      attackCommand(attackMsg);
     }
 
     if (msg.type === 'randomAttack') {
       const attackMsg = JSON.parse(msg.data) as AttackData;
-      const { gameId, indexPlayer } = attackMsg;
 
-      const game = gameDB.get(gameId);
-      const emenyGameBoard = game?.gameSet.find(
-        (set) => set.playerId !== indexPlayer
-      )?.gameBoard;
-
-      const randomAttackStatus = emenyGameBoard!.randomAttack();
-      const {
-        status,
-        position: { x, y },
-      } = randomAttackStatus;
-
-      playersDB.getSocketById(indexPlayer)?.send(
-        JSON.stringify({
-          type: 'attack',
-          data: JSON.stringify({
-            position: { x, y },
-            currentPlayer: indexPlayer,
-            status,
-          }),
-        })
-      );
-
-      const anotherId = gameDB.getAnotherPlayerId(gameId, indexPlayer);
-      playersDB.getSocketById(anotherId!)?.send(
-        JSON.stringify({
-          type: 'attack',
-          data: JSON.stringify({
-            position: { x, y },
-            currentPlayer: indexPlayer,
-            status,
-          }),
-        })
-      );
-
-      if (status === 'miss') {
-        turnCommand(anotherId!, gameId);
-      } else {
-        turnCommand(indexPlayer, gameId);
-      }
+      randomAttackCommand(attackMsg);
     }
   });
 
   ws.on('close', () => {
+    if (currentPlayer) playersDB.logout(currentPlayer.name);
     console.log('Client disconnected');
   });
 });
